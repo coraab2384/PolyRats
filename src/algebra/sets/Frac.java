@@ -25,23 +25,29 @@ public class Frac {
 
     public Frac() {}
     public Frac(int whole) {
-        intFrac(whole, 0, 1, true);
+        this.intFrac(whole, 0, 1, true);
     }
     public Frac(long whole) {
-        intFrac(0, whole, 1, true);
+        this.intFrac(0, whole, 1, true);
     }
     public Frac(int num, int den) {
-        intFrac(0, (long)num, den, true);
+        this.intFrac(0, (long)num, den, true);
     }
     public Frac(long num, int den) {
-        intFrac(0, num, den, true);
+        this.intFrac(0, num, den, true);
     }
     public Frac(int whole, int num, int den) {
-        intFrac(whole, num, den, true);
+        this.intFrac(whole, num, den, true);
     }
     public Frac(String input) {
-        FracErrors error = parseFrac(input, false);
+        FracErrors error = this.parseFrac(input, false);
         if (error != FracErrors.None) fracErrorHandler(error, input);
+    }
+    public Frac(double inputToApprox, int decimalPrecisionForApprox) {
+        decimalPrecisionForApprox = Math.max(decimalPrecisionForApprox, 0);
+        String inputS = String.format(("%." + decimalPrecisionForApprox + "f"),
+                inputToApprox);
+        this.parseFrac(inputS, false);
     }
     private FracErrors intFrac(int whole, long num, int den, boolean handleError) {
         FracErrors error;
@@ -56,7 +62,7 @@ public class Frac {
                 num *= -1;
                 den *= -1;
             }
-            reduce(num, den);
+            this.reduce(num, den);
         }
         return error;
     }
@@ -144,7 +150,7 @@ public class Frac {
             else error = FracErrors.WrongSymCount;
         }
         try {
-            error = intFrac(Integer.parseInt(wholeS),
+            error = this.intFrac(Integer.parseInt(wholeS),
                     Long.parseLong(numS),
                     Integer.parseInt(denS), false);
         }
@@ -213,6 +219,9 @@ public class Frac {
         DecimalFormat df = new DecimalFormat("#." + "0".repeat(decNumber));
         return df.format(num / (double)Integer.toUnsignedLong(den));
     }
+    public double intoDouble() {
+        return num / (double)Integer.toUnsignedLong(den);
+    }
     //endregion
     private void reduce(long bigNum, long bigDen) {
         if (bigNum == 0) {
@@ -220,7 +229,7 @@ public class Frac {
             den = 1;
         }
         else {
-            if (bigNum > Integer.MAX_VALUE || bigNum < Integer.MAX_VALUE ||
+            if (bigNum > Integer.MAX_VALUE || bigNum < Integer.MIN_VALUE ||
                     bigDen > (long)Integer.MAX_VALUE * 2 + 1) {
                 long reducer = GCD(Math.abs(bigNum), bigDen);
                 num = bigNum / reducer;
@@ -228,7 +237,7 @@ public class Frac {
             }
             else {
                 den = (int)bigDen;
-                int reducer = GCD((int)bigNum, den);
+                int reducer = GCD(Math.abs((int)bigNum), den);
                 num = bigNum / reducer;
                 den = Integer.divideUnsigned(den, reducer);
             }
@@ -241,11 +250,11 @@ public class Frac {
         return (b == 0) ? a : GCD(b, Integer.remainderUnsigned(a, b));
     }
     protected static FracComparisons compare(Frac a, Frac b) {
-        if ((a.num < 0 ^ b.num < 0) && a.den == b.den && a.num == b.num * -1)
-            return FracComparisons.AddInv;
-        //else
         if (a.num == b.num && a.den == b.den)
             return FracComparisons.Equal;
+        //else
+        if ((a.num < 0 ^ b.num < 0) && a.den == b.den && a.num == b.num * -1)
+            return FracComparisons.AddInv;
         //else
         if (a.num * b.den < b.num * a.den)
             return FracComparisons.LessThan;
@@ -258,7 +267,7 @@ public class Frac {
     public boolean greaterThan(Frac oth) {
         FracComparisons comp = compare(this, oth);
         return (comp == FracComparisons.GreaterThan ||
-                (comp == FracComparisons.AddInv && num < 0));
+                (comp == FracComparisons.AddInv && this.num < 0));
     }
     public boolean lessThan(Frac oth) {
         FracComparisons comp = compare(this, oth);
@@ -267,20 +276,20 @@ public class Frac {
     }
     public Frac copy() {
         Frac ans = new Frac();
-        ans.num = num;
-        ans.den = den;
+        ans.num = this.num;
+        ans.den = this.den;
         return ans;
     }
     public Frac negate() {
         Frac ans = new Frac();
-        ans.num = num * -1;
-        ans.den = den;
+        ans.num = this.num * -1;
+        ans.den = this.den;
         return ans;
     }
     public Frac invert() {
         Frac ans = new Frac();
-        ans.num = den;
-        ans.den = (int)num;
+        ans.num = this.den;
+        ans.den = (int)this.num;
         return ans;
     }
 
@@ -305,10 +314,12 @@ public class Frac {
         return ans;
     }
     protected void arith(Frac a, Frac b, boolean subtract) {
-        long bigNum = (subtract) ? (a.num * b.den - b.num * a.den) :
-                (a.num * b.den + b.num * a.den);
-        long bigDen = (long)a.den * b.den;
-        reduce(bigNum, bigDen);
+        long aDen = Integer.toUnsignedLong(a.den);
+        long bDen = Integer.toUnsignedLong(b.den);
+        long bigNum = (subtract) ? (a.num * bDen - b.num * aDen) :
+                (a.num * bDen + b.num * aDen);
+        long bigDen = aDen * bDen;
+        this.reduce(bigNum, bigDen);
     }
     public Frac multiply(Frac oth) {
         Frac ans = new Frac();
@@ -350,12 +361,55 @@ public class Frac {
         if (error == FracErrors.None) {
             bigNum *= a.num;
             bigDen *= a.den;
-            reduce(bigNum, bigDen);
+            this.reduce(bigNum, bigDen);
         }
         else {
             fracErrorHandler(error, b.intoMixedNum());
-            num = a.num;
-            den = a.den;
+            this.num = a.num;
+            this.den = a.den;
         }
+    }
+    public Frac squared() {
+        Frac ans = new Frac();
+        ans.num = this.num * this.num;
+        ans.den = this.den * this.den;
+        return ans;
+    }
+    public Frac power(int power) {
+        Frac ans = new Frac();
+        if (power != 0) {
+            boolean invert = false;
+            if (power < 0) {
+                invert = true;
+                power *= -1;
+            }
+            long bigNum = this.num;
+            long den = Integer.toUnsignedLong(this.den);
+            long bigDen = den;
+            int i;
+            for (i = 1; i <= power; i++) {
+                bigNum *= this.num;
+                bigDen *= den;
+            }
+            if (invert) {
+                ans.num = bigDen;
+                ans.den = (int)bigNum;
+            }
+            else {
+                ans.num = bigNum;
+                ans.den = (int)bigDen;
+            }
+        }
+        return ans;
+    }
+    public double powerApprox(double power) {
+        return Math.pow(num / (double)Integer.toUnsignedLong(den), power);
+    }
+    public Frac powerApprox(double power, int decimalPrecisionForApprox) {
+        double powered = this.powerApprox(power);
+        return new Frac(powered, decimalPrecisionForApprox);
+    }
+    public Frac powerApprox(Frac power, int decimalPrecisionForApprox) {
+        return this.powerApprox(power.intoDouble(), decimalPrecisionForApprox);
     }
 }

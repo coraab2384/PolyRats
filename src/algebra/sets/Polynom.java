@@ -29,6 +29,7 @@ public class Polynom {
     public static final Polynom zero = new Polynom(1, "zero");
     //to determine the zero spacing for the auto-names for the factors
     public static int digitsPolyFactorNames = 3;
+    public static int decimalPrecisionForApprox = 3;
 
     public Polynom() {
         polynom = new Frac[1];
@@ -145,11 +146,11 @@ public class Polynom {
     public int getLength() {
         return polynom.length;
     }
-    public Frac getTermDesc(int index) {
-        return polynom[polynom.length - index].copy();
+    public Frac getTerm(int indexFromTop) {
+        return polynom[polynom.length - indexFromTop].copy();
     }
-    public Frac getTermAsc(int index) {
-        return polynom[index].copy();
+    public Frac getTermDeg(int degree) {
+        return polynom[degree].copy();
     }
     public String getName() {
         return name;
@@ -158,18 +159,10 @@ public class Polynom {
         this.name = name;
     }
     public Polynom copy() {
-        Polynom ans = new Polynom(this.polynom.length);
-        for (int i = 0; i < this.polynom.length; i++)
-            ans.polynom[i] = this.polynom[i].copy();
-        ans.name = name;
-        return ans;
+        return copier(false, name);
     }
     public Polynom copy(String name) {
-        Polynom ans = new Polynom(this.polynom.length);
-        for (int i = 0; i < this.polynom.length; i++)
-            ans.polynom[i] = this.polynom[i].copy();
-        ans.name = name;
-        return ans;
+        return copier(false, name);
     }
     public Polynom sliceDesc(int start, int end) {
         return slicer(end, start, name);
@@ -184,17 +177,17 @@ public class Polynom {
         return slicer(start, end, name);
     }
     private Polynom slicer(int start, int end, String name) {
-        Polynom ans;
+        Polynom Ans;
         if (start == end)
-            ans = new Polynom();
+            Ans = new Polynom();
         else {
             int newLength = this.polynom.length - end;
-            ans = new Polynom(newLength);
+            Ans = new Polynom(newLength);
             for (int i = this.polynom.length - start; i < newLength; i++)
-                ans.polynom[i] = this.polynom[i].copy();
+                Ans.polynom[i] = this.polynom[i].copy();
         }
-        ans.name = name;
-        return ans;
+        Ans.name = name;
+        return Ans;
     }
     public boolean equalsTo(Polynom oth) {
         if (this.polynom.length != oth.polynom.length)
@@ -208,18 +201,19 @@ public class Polynom {
         return true;
     }
     public Polynom negate() {
-        Polynom ans = new Polynom(this.polynom.length);
-        for (int i = 0; i < this.polynom.length; i++)
-            ans.polynom[i] = this.polynom[i].negate();
-        ans.name = this.name;
-        return ans;
+        return copier(true, name);
     }
     public Polynom negate(String name) {
-        Polynom ans = new Polynom(this.polynom.length);
+        return copier(true, name);
+    }
+    private Polynom copier(boolean negate, String name) {
+        Polynom Ans = new Polynom(this.polynom.length);
         for (int i = 0; i < this.polynom.length; i++)
-            ans.polynom[i] = this.polynom[i].negate();
-        ans.name = name;
-        return ans;
+            Ans.polynom[i] = (negate) ?
+                    this.polynom[i].negate() :
+                    this.polynom[i].copy();
+        Ans.name = name;
+        return Ans;
     }
     public Polynom add(Polynom oth) {
         return arithP(this, oth, false, name);
@@ -329,16 +323,16 @@ public class Polynom {
     //each term
     //checks if the scalar is 0 to return 0 first
     private Polynom scalar(Frac scalar, boolean divide, String name) {
-        Polynom ans;
+        Polynom Ans;
         if (Frac.compare(scalar, Frac.zero) == Frac.FracComparisons.Equal)
-            ans = new Polynom();
+            Ans = new Polynom();
         else {
-            ans = new Polynom(this.polynom.length);
+            Ans = new Polynom(this.polynom.length);
             for (int i = 0; i < this.polynom.length; i++)
-                ans.polynom[i].mult(this.polynom[i], scalar, divide);
+                Ans.polynom[i].mult(this.polynom[i], scalar, divide);
         }
-        ans.name = name;
-        return ans;
+        Ans.name = name;
+        return Ans;
     }
     public Polynom multiply(Polynom oth) {
         return multP(this, oth, name);
@@ -370,12 +364,12 @@ public class Polynom {
         //else
         return multP(this, new Polynom(number, degree), name);
     }
-    //If you look at the source of each term of the answer, it will come from
+    //If you look at the source of each term of the Answer, it will come from
     //the diagonals of a box pattern, with one polynomial being length
     //and the other being width
     //this can be done using a length loop, and a column loop, nested
     //prod is the result of one particular 'box', which is then added to the final
-    //answer
+    //Answer
     private static Polynom multP(Polynom Px, Polynom Qx, String name) {
         int i, j;
         Frac prod = new Frac();
@@ -486,116 +480,135 @@ public class Polynom {
     }
     private static Polynom[] divP(Polynom Px, Polynom Qx,
                                   DivFlags flag, String[] names) {
-        Polynom[] ans = new Polynom[2];
+        Polynom[] Ans = new Polynom[2];
         if (Qx.polynom.length == 1) {
-            ans[0] = Px.scalar(Qx.polynom[0], true, null);
-            ans[1] = new Polynom();
+            Ans[0] = Px.scalar(Qx.polynom[0], true, null);
+            Ans[1] = new Polynom();
         }
         else if (Px.polynom.length <= Qx.polynom.length) {
-            ans[0] = new Polynom();
-            ans[1] = Px.copy();
+            Ans[0] = new Polynom();
+            Ans[1] = Px.copy();
             if (Px.polynom.length == Qx.polynom.length) {
-                ans[0].polynom[0].mult(Px.polynom[Px.polynom.length - 1],
+                Ans[0].polynom[0].mult(Px.polynom[Px.polynom.length - 1],
                         Qx.polynom[Qx.polynom.length - 1], true);
-                ans[1] = Qx.scalar(Qx.polynom[Qx.polynom.length - 1],
+                Ans[1] = Qx.scalar(Qx.polynom[Qx.polynom.length - 1],
                         true, null);
             }
         }
         //synthetic division
 //        else if (Qx.polynom.length == 2) {
-//            ans[0] = new Polynom(Px.polynom.length - 1);
+//            Ans[0] = new Polynom(Px.polynom.length - 1);
 //            Frac remainder = new Frac();
 //            Frac divisor = new Frac();
 //            divisor.mult(Qx.polynom[0].negate(), Qx.polynom[1], true);
 //            int i = Px.polynom.length;
 //            while (i > 0) {
 //                remainder.arith(Px.polynom[i--], remainder, false);
-//                ans[0].polynom[i] = remainder.copy();
+//                Ans[0].polynom[i] = remainder.copy();
 //                remainder.mult(remainder, divisor, false);
 //            }
 //            if (flag == DivFlags.wBothNoNames || flag == DivFlags.wBothNewNames) {
 //                remainder.arith(Px.polynom[0], remainder, false);
-//                ans[1] = new Polynom(remainder, 0);
+//                Ans[1] = new Polynom(remainder, 0);
 //            }
 //        }
         else {
             int h, i;
             int j = Px.polynom.length - Qx.polynom.length + 1;
             int lengthR = Qx.polynom.length - 1;
-            ans[0] = new Polynom(j);
-            Frac temp = new Frac();
+            Ans[0] = new Polynom(j);
+            Frac tempTerm = new Frac();
             while (j > 0) {
                 h = j--;
-                ans[0].polynom[j] = Px.polynom[lengthR + j].copy();
+                Ans[0].polynom[j] = Px.polynom[lengthR + j].copy();
                 i = lengthR;
-                while (i > 0 && h < ans[0].polynom.length) {
-                    temp.mult(Qx.polynom[--i], ans[0].polynom[h++], false);
-                    ans[0].polynom[j].arith(ans[0].polynom[j], temp, true);
+                while (i > 0 && h < Ans[0].polynom.length) {
+                    tempTerm.mult(Qx.polynom[--i], Ans[0].polynom[h++], false);
+                    Ans[0].polynom[j].arith(Ans[0].polynom[j], tempTerm, true);
                 }
-                ans[0].polynom[j].mult(ans[0].polynom[j],
+                Ans[0].polynom[j].mult(Ans[0].polynom[j],
                         Qx.polynom[lengthR], true);
             }
-            if (flag == DivFlags.wBothNoNames || flag == DivFlags.wBothNewNames) {
-                boolean first = true;
-                j = lengthR;
-                Frac remain = new Frac();
-                while (j > 0) {
-                    h = --j;
-                    i = 0;
-                    while (h > 0) {
-                        if (h-- < ans[0].polynom.length) {
-                            temp.mult(Qx.polynom[i], ans[0].polynom[h], false);
-                            if (first) {
-                                remain = Px.polynom[j].copy();
-                                remain.arith(remain, temp, true);
+            switch (flag) {
+                case wBothNewNames, wBothNoNames:
+                    boolean first = true;
+                    j = lengthR;
+                    Frac remain = new Frac();
+                    while (j > 0) {
+                        h = --j;
+                        i = 0;
+                        while (h > 0) {
+                            if (h-- < Ans[0].polynom.length) {
+                                tempTerm.mult(Qx.polynom[i],
+                                        Ans[0].polynom[h], false);
+                                if (first) {
+                                    remain = Px.polynom[j].copy();
+                                    remain.arith(remain, tempTerm, true);
+                                }
+                                else
+                                    Ans[1].polynom[j].arith(Ans[1].polynom[j],
+                                            tempTerm, true);
                             }
-                            else
-                                ans[1].polynom[j].arith(ans[1].polynom[j],
-                                        temp, true);
+                            i++;
                         }
-                        i++;
-                    }
-                    if (first) {
-                        if (j == 0)
-                            ans[1] = new Polynom();
-                        else {
-                            if (Frac.compare(remain, Frac.zero) !=
-                                    Frac.FracComparisons.Equal) {
-                                ans[1] = Px.slicer(0, j, null);
-                                ans[1].polynom[j] = remain.copy();
-                                first = false;
+                        if (first) {
+                            if (j == 0)
+                                Ans[1] = new Polynom();
+                            else {
+                                if (Frac.compare(remain, Frac.zero) !=
+                                        Frac.FracComparisons.Equal) {
+                                    Ans[1] = Px.slicer(0, j, null);
+                                    Ans[1].polynom[j] = remain.copy();
+                                    first = false;
+                                }
                             }
                         }
                     }
-                }
             }
         }
         switch (flag) {
             case wBothNewNames:
-                ans[1].name = names[1];
+                Ans[1].name = names[1];
             case oQuotNewName:
-                ans[0].name = names[0];
+                Ans[0].name = names[0];
                 break;
             case wBothNoNames:
-                ans[1].name = Px.name;
+                Ans[1].name = Px.name;
             case oQuotNoName:
-                ans[0].name = Px.name;
+                Ans[0].name = Px.name;
+        }
+        return Ans;
+    }
+    public Polynom power(int power) {
+        return power(power, name);
+    }
+    public Polynom power(int power, String name) {
+        if (power <= 0)
+            return new Polynom(1, 0, name);
+        //else
+        Polynom ans = this.copy(null);
+        while (power > 1) {
+            ans = multP(ans, this, name);
+            power--;
         }
         return ans;
     }
-    public Polynom[] rationalFactors() {
-        String formatString = "%0" + digitsPolyFactorNames + "d";
-        Polynom Wx = this.copy(name + "_");
+    private String nameIterator(int index) {
+        return name + "_" + String.format(
+                ("%0" + digitsPolyFactorNames + "d"), index);
+    }
+    public java.util.ArrayList<Polynom> rationalFactors() {
+        Polynom Wx = this.copy();
         int last = this.polynom.length;
         int curLength = last--;
+        java.util.ArrayList<Polynom> ratFactors =
+                new java.util.ArrayList<>();
         if (curLength > 1) {
-            long longP, denLCM, numGCD, l;
+            long longP, denLCM, numGCD, pDen, qDen, l;
             int intQ, posFactorCount, i, j, k;
             int begin = 0;
-            java.util.ArrayList<Frac> posFactors =
-                    new java.util.ArrayList<>();
             int ratFactorCount = 0;
-            java.util.ArrayList<Polynom> ratFactors =
+            java.util.ArrayList<Frac> posFactors =
                     new java.util.ArrayList<>();
             int factorsPCount = 1;
             java.util.ArrayList<Long> factorsP =
@@ -604,40 +617,40 @@ public class Polynom {
             int factorsQCount = 0;
             java.util.ArrayList<Integer> factorsQ =
                     new java.util.ArrayList<>();
-            Frac scalar, prospect, f;
+            Frac scalar, prospect;
             for (Frac term : Wx.polynom) {
-                if (Frac.compare(term, Frac.zero) == Frac.FracComparisons.Equal)
+                if (term.getNum() == 0)
                     begin++;
                 else break;
             }
             if (begin != 0) {
                 ratFactors.add(new Polynom(1, begin,
-                        Wx.name + String.format(formatString, ++ratFactorCount)));
+                        Wx.nameIterator(++ratFactorCount)));
                 Wx = slicer(begin, curLength, Wx.name);
                 curLength -= begin;
                 last -= begin;
             }
-            denLCM = Integer.toUnsignedLong(Wx.polynom[0].getDen()) *
-                    Integer.toUnsignedLong(Wx.polynom[last].getDen()) /
-                    Integer.toUnsignedLong(Frac.GCD(Wx.polynom[0].getDen(),
-                            Wx.polynom[last].getDen()));
-            scalar = new Frac(denLCM);
-            f = new Frac();
-            f.mult(Wx.polynom[0], scalar, false);
-            numGCD = f.getNum();
-            for (i = 1; i < curLength; i++) {
-                f.mult(Wx.polynom[i], scalar, false);
-                numGCD = Frac.GCD(numGCD, f.getNum());
-                if (numGCD == 1)
-                    break;
+            pDen = Integer.toUnsignedLong(Wx.polynom[0].getDen());
+            qDen = Integer.toUnsignedLong(Wx.polynom[last].getDen());
+            denLCM = pDen * qDen / Frac.GCD(pDen, qDen);
+            scalar = (Wx.polynom[last].isNegative()) ?
+                    new Frac(-1 * denLCM) :
+                    new Frac(denLCM);
+            Frac term = new Frac();
+            term.mult(Wx.polynom[last], scalar, false);
+            numGCD = term.getNum();
+            i = last;
+            while (i > 0 && numGCD != 1) {
+                term.mult(Wx.polynom[--i], scalar, false);
+                numGCD = Frac.GCD(numGCD, Math.abs(term.getNum()));
             }
             if (numGCD != denLCM) {
-                scalar = new Frac(numGCD, (int)denLCM);
+                scalar.mult(new Frac(numGCD), scalar, true);
                 Wx = Wx.scalar(scalar, true, Wx.name);
                 if (begin != 0)
                     ratFactors.get(0).polynom[begin] = scalar;
                 else ratFactors.add(new Polynom(scalar, 0,
-                        Wx.name + String.format(formatString, ++ratFactorCount)));
+                        Wx.nameIterator(++ratFactorCount)));
             }
             longP = Math.abs(Wx.polynom[0].getNum());
             intQ = (int)Math.abs(Wx.polynom[last].getNum());
@@ -680,15 +693,15 @@ public class Polynom {
                 for (j = 0; j < factorsQCount; j++) {
                     prospect = new Frac(factorsP.get(i), factorsQ.get(j));
                     for (k = 0; k < posFactorCount; k++) {
-                        if (Frac.compare(posFactors.get(k), prospect) ==
-                                Frac.FracComparisons.LessThan) {
+                        Frac.FracComparisons compResult =
+                                Frac.compare(posFactors.get(k), prospect);
+                        if (compResult == Frac.FracComparisons.LessThan) {
                             posFactors.add(k - 1, prospect);
                             posFactorCount += 2;
                             break;
                         }
                         //else
-                        if (Frac.compare(posFactors.get(k), prospect) ==
-                                Frac.FracComparisons.Equal)
+                        if (compResult == Frac.FracComparisons.Equal)
                             break;
                     }
                 }
@@ -704,15 +717,88 @@ public class Polynom {
                         DivFlags.wBothNoNames, null);
                 if (divResults[1].equalsTo(zero)) {
                     Wx = divResults[0].copy();
-                    ratFactors.add(tryDivide.copy(Wx.name +
-                            String.format(formatString, ++ratFactorCount)));
+                    ratFactors.add(tryDivide.copy(Wx.nameIterator(++ratFactorCount)));
                     curLength--;
-                    }
-                else ++i;
                 }
-            Wx.name = Wx.name + String.format(formatString, ++ratFactorCount);
-            ratFactors.add(Wx);
+                else ++i;
             }
+            Wx.name = Wx.nameIterator(++ratFactorCount);
+            ratFactors.add(Wx);
         }
+        else {
+            Wx.name += ", which is a constant";
+            ratFactors.add(Wx);
+        }
+        return ratFactors;
+    }
+    public Polynom[] quadraticEquationApprox() {
+        Polynom[] factors;
+        if (this.polynom.length == 3) {
+            int i;
+            java.util.ArrayList<Polynom> ratFactors = this.rationalFactors();
+            int ratFactorLength = ratFactors.size();
+            Frac scalar;
+            boolean isScaled;
+            if (ratFactors.get(0).polynom.length == 1) {
+                isScaled = true;
+                scalar = ratFactors.get(0).polynom[0];
+            }
+            else {
+                isScaled = false;
+                scalar = new Frac();
+            }
+            if (ratFactorLength == 3 || (ratFactorLength == 2 && !isScaled)) {
+                factors = new Polynom[ratFactorLength];
+                for (i = 0; i < ratFactorLength; i++)
+                    factors[i] = ratFactors.get(i);
+                return factors;
+            }
+            //else
+            Frac determinant = new Frac(4);
+            determinant.mult(this.polynom[2], determinant, false);
+            determinant.mult(this.polynom[0], determinant, false);
+            determinant.arith(this.polynom[1].squared(), determinant, true);
+            if (determinant.isPositive()) {
+                scalar = this.polynom[2];
+                determinant.mult(determinant, new Frac(4), true);
+                Frac scaledB = new Frac(-1, 2);
+                scaledB.mult(this.polynom[1], scaledB, false);
+                if (Frac.compare(scalar, new Frac(1)) == Frac.FracComparisons.Equal) {
+                    isScaled = false;
+                    factors = new Polynom[2];
+                    i = 0;
+                }
+                else {
+                    isScaled = true;
+                    scaledB.mult(scaledB, scalar, true);
+                    determinant.mult(determinant, scalar.squared(), true);
+                    factors = new Polynom[3];
+                    factors[0] = new Polynom(scalar, 0, this.nameIterator(1));
+                    i = 1;
+                }
+                double b = scaledB.intoDouble();
+                double rootTwo = determinant.powerApprox(0.5);
+                double rootOne = b - rootTwo;
+                rootTwo += b;
+                while (i < factors.length) {
+                    factors[i] = new Polynom(new Frac(1), 1,
+                            this.nameIterator(i + 1));
+                    factors[i].polynom[0] = new Frac(
+                            ((i == factors.length - 1) ? rootTwo : rootOne),
+                            decimalPrecisionForApprox);
+                    i++;
+                }
+                return factors;
+            }
+            //else
+            factors = new Polynom[ratFactorLength];
+            for (i = 0; i < ratFactorLength; i++)
+                factors[i] = ratFactors.get(i);
+            return factors;
+        }
+        //else
+        factors = new Polynom[1];
+        factors[0] = this.copy(this.name + ", which is not a quadratic");
+        return factors;
     }
 }
