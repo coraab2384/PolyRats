@@ -1,4 +1,6 @@
-import algebra.sets.Frac;
+import algebra.sets.*;
+
+import java.util.ArrayList;
 
 // Press Shift twice to open the Search Everywhere dialog and type `show whitespaces`,
 // then press Enter. You can now see whitespace characters in your code.
@@ -10,9 +12,10 @@ public class Main {
         System.out.println(2000000000 * 4);
         Frac a = new Frac(1,5,3);
         Frac b = new Frac("3 & 1 / 2");
-        System.out.println(b.getSignedWhole());
-        System.out.println(a.intoString());
-        System.out.println(b.intoString());
-        System.out.println((a.divide(b)).intoString());
+        System.out.println((int)(3000000000L));
+        java.util.ArrayList<Integer> test = new ArrayList<>();
+        test.add(1);
+        test.add(1, 2);
+        System.out.println(test);
     }
 }

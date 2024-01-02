@@ -1,12 +1,8 @@
 package algebra.sets;
 
-import java.text.DecimalFormat;
-
 public class Frac {
-    //private int whole;
-    private long num;
+    private long num; // = 0
     private int den = 1;
-    //private boolean negative;
     protected enum FracComparisons {
         AddInv,
         GreaterThan,
@@ -22,7 +18,6 @@ public class Frac {
         None
     }
     public static final Frac zero = new Frac();
-
     public Frac() {}
     public Frac(int whole) {
         this.intFrac(whole, 0, 1, true);
@@ -43,12 +38,26 @@ public class Frac {
         FracErrors error = this.parseFrac(input, false);
         if (error != FracErrors.None) fracErrorHandler(error, input);
     }
+    //9 decimals corresponds to 10 denominator digits
+    //which is the max length of the digit of the denominator
+    //we can go to intFrac, which is shorter, if we can round directly into a long
+    //which is when the int input is 0 (also negative, because that makes no sense)
+    //otherwise we can turn it into a string with the desired decimal length
+    //and feed it to the string parser
     public Frac(double inputToApprox, int decimalPrecisionForApprox) {
-        decimalPrecisionForApprox = Math.max(decimalPrecisionForApprox, 0);
-        String inputS = String.format(("%." + decimalPrecisionForApprox + "f"),
-                inputToApprox);
-        this.parseFrac(inputS, false);
+        String inputS;
+        decimalPrecisionForApprox = Math.min(decimalPrecisionForApprox, 9);
+        if (decimalPrecisionForApprox <= 0)
+            this.intFrac(0, Math.round(inputToApprox), 1, false);
+        else {
+            inputS = String.format(("%." + decimalPrecisionForApprox + "f"),
+                    inputToApprox);
+            this.parseFrac(inputS, false);
+        }
     }
+    //we check for dividing by 0 and deal with some ambiguity
+    //with mixed negative numbers
+    //then turn it into an improper fraction and run it through the reducer
     private FracErrors intFrac(int whole, long num, int den, boolean handleError) {
         FracErrors error;
         if (den == 0) {
@@ -58,10 +67,9 @@ public class Frac {
         }
         else {
             error = FracErrors.None;
-            if (den < 0) {
+            if (whole < 0 && num >= 0)
                 num *= -1;
-                den *= -1;
-            }
+            num += whole * Integer.toUnsignedLong(den);
             this.reduce(num, den);
         }
         return error;
@@ -152,7 +160,7 @@ public class Frac {
         try {
             error = this.intFrac(Integer.parseInt(wholeS),
                     Long.parseLong(numS),
-                    Integer.parseInt(denS), false);
+                    Integer.parseUnsignedInt(denS), false);
         }
         catch (NumberFormatException e) {
             error = FracErrors.UnparsableInt;
@@ -207,53 +215,64 @@ public class Frac {
         return num >= 0;
     }
     public String intoMixedNum() {
-        return (num / Integer.toUnsignedLong(den)) +
-                " & " + (Math.abs(num) % Integer.toUnsignedLong(den)) +
-                " / " + Integer.toUnsignedString(den);
+        long denL = Integer.toUnsignedLong(den);
+        return (num / denL) + " & " + (Math.abs(num) % denL) +
+                " / " + denL;
     }
     public String intoImpFrac() {
         return num + " / " + Integer.toUnsignedString(den);
     }
     public String intoDec(int decNumber) {
         decNumber = Math.max(decNumber, 1);
-        DecimalFormat df = new DecimalFormat("#." + "0".repeat(decNumber));
+        java.text.DecimalFormat df = new java.text.DecimalFormat(
+                "#." + "0".repeat(decNumber));
         return df.format(num / (double)Integer.toUnsignedLong(den));
     }
     public double intoDouble() {
         return num / (double)Integer.toUnsignedLong(den);
     }
     //endregion
+
+    //reduce the fraction to lowest form
+    //set denominator to 1 if the numerator is 0
     private void reduce(long bigNum, long bigDen) {
         if (bigNum == 0) {
             num = 0;
             den = 1;
         }
+        //it seems wasteful to run the gcd function with longs when that is unneccessary
+        //ideally, the numbers are within the range of ints, the primary reason
+        //to have the numerator be stored as a long is because it also contains
+        //within itself the data of the whole number, and this
+        //means that in operations, the value can quickly balloon before ultimately
+        //being simplified
+        else if (bigNum > Integer.MAX_VALUE || bigNum < Integer.MIN_VALUE ||
+                bigDen > (long)Integer.MAX_VALUE * 2 + 1) {
+            long reducer = GCD(Math.abs(bigNum), bigDen);
+            num = bigNum / reducer;
+            den = (int)(bigDen / reducer);
+        }
         else {
-            if (bigNum > Integer.MAX_VALUE || bigNum < Integer.MIN_VALUE ||
-                    bigDen > (long)Integer.MAX_VALUE * 2 + 1) {
-                long reducer = GCD(Math.abs(bigNum), bigDen);
-                num = bigNum / reducer;
-                den = (int)(bigDen / reducer);
-            }
-            else {
-                den = (int)bigDen;
-                int reducer = GCD(Math.abs((int)bigNum), den);
-                num = bigNum / reducer;
-                den = Integer.divideUnsigned(den, reducer);
-            }
+            den = (int)bigDen;
+            int reducer = GCD((int)Math.abs(bigNum), den);
+            num = bigNum / Integer.toUnsignedLong(reducer);
+            den = Integer.divideUnsigned(den, reducer);
         }
     }
+    //recursive Euclidian
     protected static long GCD(long a, long b) {
         return (b == 0) ? a : GCD(b, a % b);
     }
+    //recursive Euclidian, but using unsigned ints
     protected static int GCD(int a, int b) {
         return (b == 0) ? a : GCD(b, Integer.remainderUnsigned(a, b));
     }
+    //compare fractions for the bool functions, also looks for additive inverses
     protected static FracComparisons compare(Frac a, Frac b) {
-        if (a.num == b.num && a.den == b.den)
+        if (a.den == b.den && a.num == b.num)
             return FracComparisons.Equal;
         //else
-        if ((a.num < 0 ^ b.num < 0) && a.den == b.den && a.num == b.num * -1)
+        if (a.den == b.den && a.num == b.num * -1)
             return FracComparisons.AddInv;
         //else
         if (a.num * b.den < b.num * a.den)
@@ -264,55 +283,84 @@ public class Frac {
     public boolean equalsTo(Frac oth) {
         return (compare(this, oth) == FracComparisons.Equal);
     }
+    //if it gets that two are additive inverses, returns true if this one
+    //is positive
     public boolean greaterThan(Frac oth) {
         FracComparisons comp = compare(this, oth);
         return (comp == FracComparisons.GreaterThan ||
                 (comp == FracComparisons.AddInv && this.num < 0));
     }
+    //if it finds that two are additive inverses, returns true if the other one
+    //is positive
     public boolean lessThan(Frac oth) {
         FracComparisons comp = compare(this, oth);
         return (comp == FracComparisons.LessThan ||
                 (comp == FracComparisons.AddInv && oth.num < 0));
     }
+    //copies the fraction to a new object
     public Frac copy() {
         Frac ans = new Frac();
         ans.num = this.num;
         ans.den = this.den;
         return ans;
     }
+    //copies the fraction to a new object, but negated
     public Frac negate() {
         Frac ans = new Frac();
         ans.num = this.num * -1;
         ans.den = this.den;
         return ans;
     }
+    //creates a new fraction with that is flipped, along with
+    //reworking the negatives to account for the flip
     public Frac invert() {
         Frac ans = new Frac();
         ans.num = this.den;
-        ans.den = (int)this.num;
+        if (this.num < 0) {
+            ans.num *= -1;
+            ans.den = (int)(this.num * -1);
+        }
+        else
+            ans.den = (int)this.num;
         return ans;
     }
 
+    //essentially a wrapper for the arithmetic function, that locks the add/subtract
+    //flag to add
     public Frac add(Frac oth) {
         Frac ans = new Frac();
         ans.arith(this, oth, false);
         return ans;
     }
+    //does the same as the above function, but also turns the int input into a fraction
     public Frac add(int number) {
         Frac ans = new Frac();
         ans.arith(this, new Frac(number), false);
         return ans;
     }
+    //wrapper for the arith function, but with subtraction flag set true
     public Frac subtract(Frac oth) {
         Frac ans = new Frac();
         ans.arith(this, oth, true);
         return ans;
     }
+    //the above but for an int input instead of a frac
     public Frac subtract(int number) {
         Frac ans = new Frac();
         ans.arith(this, new Frac(number), true);
         return ans;
     }
+    //first we put the denominators into longs
+    // we do this explicitly to account for them being unsigned
+    //To add, you get a common denominator, but since we
+    // have to simplify it at the end anyway, we'll just
+    // use the product as a guaranteed denominator and just
+    // simplify once
+    //Because since the multiplication that happens before
+    // the simplification can possibly balloon quite large, we do this all in long
+    //then reduce
+    //This function returns nothing; rather, it takes the answer as the primary object
+    // and assigns the appropriate values into it
     protected void arith(Frac a, Frac b, boolean subtract) {
         long aDen = Integer.toUnsignedLong(a.den);
         long bDen = Integer.toUnsignedLong(b.den);
@@ -321,26 +369,42 @@ public class Frac {
         long bigDen = aDen * bDen;
         this.reduce(bigNum, bigDen);
     }
+    //wrapper for the mult/divide function
     public Frac multiply(Frac oth) {
         Frac ans = new Frac();
         ans.mult(this, oth, false);
         return ans;
     }
+    //wrapper for multiplication with an integer
     public Frac multiply(int number) {
         Frac ans = new Frac();
         ans.mult(this, new Frac(number), false);
         return ans;
     }
+    //wrapper for division with an integer
     public Frac divide(Frac oth) {
         Frac ans = new Frac();
         ans.mult(this, oth, true);
         return ans;
     }
+    //wrapper for division but with an int instead
     public Frac divide(int number) {
         Frac ans = new Frac();
         ans.mult(this, new Frac(number), true);
         return ans;
     }
+    //since fraction multiplication and division are so similar
+    // (all that changes is that the second fraction is upside down
+    // it can be done with the same function with a boolean flag and an if
+    //this function also does the checking for division by 0, and it returns the same answer
+    //an error in such a case
+    //because it returns as error, the actual answer is the primary object
+    //create the longs to do the math in, then assign to them the appropriate values from
+    //the second fraction.
+    //Use the flag to flip if it is division
+    //if division, we check for division by 0
+    //then multiply the num and den by the first fraction directly
+    // and reduce
     protected void mult(Frac a, Frac b, boolean divide) {
         long bigNum, bigDen;
         FracErrors error = FracErrors.None;
@@ -369,28 +433,45 @@ public class Frac {
             this.den = a.den;
         }
     }
+
+    //basically copies, but squares as well
     public Frac squared() {
         Frac ans = new Frac();
         ans.num = this.num * this.num;
         ans.den = this.den * this.den;
         return ans;
     }
+    //returns integer power of fractions, including negative power support
     public Frac power(int power) {
+        //we already have a function for this
+        if (power == 2)
+            return this.squared();
+        //else
         Frac ans = new Frac();
-        if (power != 0) {
-            boolean invert = false;
+        //if it is 0, the answer is always 1
+        if (power == 0)
+            ans.num = 1;
+        else {
+            boolean invert;
+            //if the power is negative, set the invert flag
+            // and make the power be the absolute value
             if (power < 0) {
                 invert = true;
                 power *= -1;
             }
+            else
+                invert = false;
+            //stick them into longs before calculating, this also helps for
+            // if we have to invert
             long bigNum = this.num;
             long den = Integer.toUnsignedLong(this.den);
             long bigDen = den;
-            int i;
-            for (i = 1; i <= power; i++) {
+            //treating exponentiation as chained multiplication
+            for (int i = 1; i <= power; i++) {
                 bigNum *= this.num;
                 bigDen *= den;
             }
+            //if inverted, flip them, else put them in the intuitive spot
             if (invert) {
                 ans.num = bigDen;
                 ans.den = (int)bigNum;
@@ -402,13 +483,24 @@ public class Frac {
         }
         return ans;
     }
+    //if someone wanted to wreck these nice rationals with
+    // transcendental powers, well, here we go
+    //turn the fraction to a double (divide num by the den, but the den must be
+    // properly longed as it is unsigned
+    //then there's the built-in power function
     public double powerApprox(double power) {
         return Math.pow(num / (double)Integer.toUnsignedLong(den), power);
     }
+    //this one is for if we want to get our answer back as a fraction
+    //essentially, we call the above function for the power, then
+    //force that float into a fraction using the given level of precision
     public Frac powerApprox(double power, int decimalPrecisionForApprox) {
         double powered = this.powerApprox(power);
         return new Frac(powered, decimalPrecisionForApprox);
     }
+    //this function is the above, but with the power being a rational instead of
+    // a double
+    //all that changes is turning the rational into a double anyway though
     public Frac powerApprox(Frac power, int decimalPrecisionForApprox) {
         return this.powerApprox(power.intoDouble(), decimalPrecisionForApprox);
     }
